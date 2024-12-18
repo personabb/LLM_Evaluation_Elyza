@@ -122,7 +122,7 @@ elif Evaluation == "HuggingFace":
     )
 
     if tokenizer.chat_template == None:
-        with open("./inputs/llama_chat_template", 'r', encoding='utf-8') as file:
+        with open("./inputs/llama_chat_template.txt", 'r', encoding='utf-8') as file:
             template = file.read()
         tokenizer.chat_template = template
 
@@ -133,7 +133,7 @@ elif Evaluation == "HuggingFace":
     )
 
     pipe = HuggingFacePipeline(pipeline=pipe)
-    model = ChatHuggingFace(llm=pipe)
+    model = ChatHuggingFace(llm=pipe, tokenizer=pipe.pipeline.tokenizer)
 
 else:
     model = None
@@ -191,7 +191,7 @@ elif Target == "HuggingFace":
     )
 
     if tokenizer_target.chat_template == None:
-        with open("./inputs/llama_chat_template", 'r', encoding='utf-8') as file:
+        with open("./inputs/llama_chat_template.txt", 'r', encoding='utf-8') as file:
             template = file.read()
         tokenizer_target.chat_template = template
 
@@ -201,7 +201,7 @@ elif Target == "HuggingFace":
     )
 
     pipe_target = HuggingFacePipeline(pipeline=pipe_target)
-    llm_api = ChatHuggingFace(llm=pipe_target)
+    llm_api = ChatHuggingFace(llm=pipe_target, tokenizer=pipe_target.pipeline.tokenizer)
 else:
     model = None
     print("モデルが選択されていません。")
