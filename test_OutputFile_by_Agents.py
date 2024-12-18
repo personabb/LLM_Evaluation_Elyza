@@ -49,8 +49,6 @@ HuggingFace_access = True
 
 #評価側温度の設定 評価に使うので、基本的に0でいい
 Evaluation_temperature = 0
-#評価対象側温度の設定 評価に使うので、基本的に0でいい
-Target_temperature = 0
 
 #AWSなどでキャッシュディレクトリを利用する場合はここに指定する。使わない場合はNone
 efs_cache_dir = None
