@@ -115,7 +115,7 @@ elif Evaluation == "HuggingFace":
         use_fast=True
     )
 
-    if tokenizer.chat_template == None:
+    if (tokenizer.chat_template == None) and ("llama" in Evaluation_model.lower()):
         with open("./inputs/llama_chat_template", 'r', encoding='utf-8') as file:
             template = file.read()
         tokenizer.chat_template = template
