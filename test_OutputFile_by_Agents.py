@@ -41,7 +41,7 @@ Evaluation_model = "gpt-4o"
 output_txt = "./outputs/tuzumi-agents/output-tuzumi-agents.txt"
 
 #何問目から再開するか 1問目から始める場合は1
-resume_question_index = 101
+resume_question_index = 1
 
 #Huggingfaceにて、アクセス権限がないと取得できないモデルを利用するかどうかのフラグ
 HuggingFace_access = True

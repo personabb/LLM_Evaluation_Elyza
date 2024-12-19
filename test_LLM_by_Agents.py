@@ -45,7 +45,7 @@ Target_model = "gpt-4o-mini"
 #Target_model = "meta-llama/Llama-3.2-1B-Instruct"
 
 #何問目から再開するか 1問目から始める場合は1
-resume_question_index = 101
+resume_question_index = 1
 
 #Huggingfaceにて、アクセス権限がないと取得できないモデルを利用するかどうかのフラグ
 HuggingFace_access = True
@@ -227,7 +227,7 @@ safe_evaluation_model = sanitize_filename(Evaluation_model)
 os.makedirs(f"./outputs/{safe_target_model}", exist_ok=True)
 
 
-def Evaluate_LLM(call_in:str, step:int):
+def Evaluate_LLM(call_in:str, step:int, critc_file:str):
     prompt1 = ChatPromptTemplate.from_messages(
         [
             ("human", "{user_input}")
