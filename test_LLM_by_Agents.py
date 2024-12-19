@@ -29,23 +29,23 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 #=================Parameter===========================================================================
 
 #評価者モデルの選択
-Evaluation = "Azure"
-Evaluation_model = "gpt-4o"
-#Evaluation = "Google"
-#Evaluation_model = "gemini-1.5-flash"
+#Evaluation = "Azure"
+#Evaluation_model = "gpt-4o"
+Evaluation = "Google"
+Evaluation_model = "gemini-1.5-flash"
 #Evaluation = "HuggingFace"
 #Evaluation_model = "meta-llama/Llama-3.3-70B-Instruct"
 
 #評価対象のモデルの選択
-Target = "Azure"
-Target_model = "gpt-4o-mini"
+#Target = "Azure"
+#Target_model = "gpt-4o-mini"
 #Target = "Google"
 #Target_model = "gemini-1.5-flash"
-#Target = "HuggingFace"
-#Target_model = "meta-llama/Llama-3.2-1B-Instruct"
+Target = "HuggingFace"
+Target_model = "meta-llama/Llama-3.2-1B-Instruct"
 
 #何問目から再開するか 1問目から始める場合は1
-resume_question_index = 1
+resume_question_index = 101
 
 #Huggingfaceにて、アクセス権限がないと取得できないモデルを利用するかどうかのフラグ
 HuggingFace_access = True
@@ -224,7 +224,7 @@ def sanitize_filename(filename: str) -> str:
 
 safe_target_model = sanitize_filename(Target_model)
 safe_evaluation_model = sanitize_filename(Evaluation_model)
-os.makedirs(f"./outputs/{safe_target_model}", exist_ok=True)
+os.makedirs(f"./outputs/{Target}-{safe_target_model}", exist_ok=True)
 
 
 def Evaluate_LLM(call_in:str, step:int, critc_file:str):
@@ -343,7 +343,7 @@ def make_input(LLM_output:str, question:str, Correct_text:str, eval_aspect:str, 
     return exam_text
 
 def score_sum():
-    with open(f"./outputs/{safe_target_model}/result-{Target}-{safe_target_model}_by_{safe_evaluation_model}.txt","r", encoding="utf-8") as f:
+    with open(f"./outputs/{Target}-{safe_target_model}/result-{Target}-{safe_target_model}_by_{safe_evaluation_model}.txt","r", encoding="utf-8") as f:
         d = f.readlines()
 
     lines_rstrip_D = [lineD.rstrip("\n") for lineD in d]
@@ -364,7 +364,7 @@ def score_sum():
     print(f"target_model: {safe_target_model}, evaluation_model: {safe_evaluation_model}")
     print("スコアは"+str(score)+"です")
 
-    with open(f"./outputs/{safe_target_model}/score-{Target}-{safe_target_model}_by_{safe_evaluation_model}.txt", mode='a', encoding="utf-8") as f:
+    with open(f"./outputs/{Target}-{safe_target_model}/score-{Target}-{safe_target_model}_by_{safe_evaluation_model}.txt", mode='a', encoding="utf-8") as f:
         f.write("スコアは"+str(score)+"です\n")
 
 def remove_whitespace(text: str) -> str:
@@ -472,11 +472,11 @@ def combine_files(output_file:str, result_file:str, critc_file:str, csv_file:str
 
 
 
-output_file = f"./outputs/{safe_target_model}/output-{Target}-{safe_target_model}.txt"
-result_file = f"./outputs/{safe_target_model}/result-{Target}-{safe_target_model}_by_{safe_evaluation_model}.txt"
-critc_file = f"./outputs/{safe_target_model}/cretical-{Target}-{safe_target_model}_by_{safe_evaluation_model}.txt"
+output_file = f"./outputs/{Target}-{safe_target_model}/output-{Target}-{safe_target_model}.txt"
+result_file = f"./outputs/{Target}-{safe_target_model}/result-{Target}-{safe_target_model}_by_{safe_evaluation_model}.txt"
+critc_file = f"./outputs/{Target}-{safe_target_model}/cretical-{Target}-{safe_target_model}_by_{safe_evaluation_model}.txt"
 csv_file = './inputs/test.csv'
-markdown_output = f"./outputs/{safe_target_model}/Elyza-{Target}-{safe_target_model}_by_{safe_evaluation_model}.md"
+markdown_output = f"./outputs/{Target}-{safe_target_model}/Elyza-{Target}-{safe_target_model}_by_{safe_evaluation_model}.md"
 
 
 

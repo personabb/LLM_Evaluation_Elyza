@@ -38,7 +38,7 @@ Evaluation_model = "gpt-4o"
 
 #評価対象のファイル群を選定する
 #ファイル名がoutput-から始まる.txtファイルを選定する
-output_txt = "./outputs/tuzumi-agents/output-tuzumi-agents.txt"
+output_txt = "./outputs/gpt-4o-mini/output-Azure-gpt-4o-mini.txt"
 
 #何問目から再開するか 1問目から始める場合は1
 resume_question_index = 1
