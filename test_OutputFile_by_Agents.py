@@ -157,7 +157,7 @@ safe_evaluation_model = sanitize_filename(Evaluation_model)
 os.makedirs(f"./outputs/{safe_target_model}", exist_ok=True)
 
 
-def Evaluate_LLM(call_in:str, step:int):
+def Evaluate_LLM(call_in:str, step:int, critc_file:str):
     prompt1 = ChatPromptTemplate.from_messages(
         [
             ("human", "{user_input}")
@@ -189,7 +189,7 @@ def Evaluate_LLM(call_in:str, step:int):
 
     output = chain.invoke({"user_input":str(call_in)})
     #print(output)
-    with open(f"./outputs/{safe_target_model}/cretical-{safe_target_model}_by_{safe_evaluation_model}.txt", mode='a', encoding="utf-8") as f:
+    with open(critc_file, mode='a', encoding="utf-8") as f:
         f.write(f"=========={step}.Prompt===========\n\n" + output["user_input"]["user_input"] +f"\n\n---------LLM Output---------\n\n")
         f.write(output["llm_output"] +f"\n\n---------LLM Answer---------\n\n" + output["Answer"] + "\n\n")
     return output["Answer"]
@@ -369,6 +369,7 @@ def combine_files(output_file:str, result_file:str, critc_file:str, csv_file:str
 
 
 result_file = f"./outputs/{safe_target_model}/result-{safe_target_model}_by_{safe_evaluation_model}.txt"
+critc_file = f"./outputs/{safe_target_model}/cretical-{safe_target_model}_by_{safe_evaluation_model}.txt"
 csv_file = './inputs/test.csv'
 markdown_output = f"./outputs/{safe_target_model}/Elyza-{safe_target_model}_by_{safe_evaluation_model}.md"
 
@@ -382,7 +383,7 @@ with open(csv_file, 'r', encoding='utf-8') as csvfile:
             out = Answers_LLM_exploit(step, result)
 
             exam_text = make_input(out,row[0],row[1],row[2])
-            res = Evaluate_LLM(exam_text, step)
+            res = Evaluate_LLM(exam_text, step, critc_file)
             res = remove_whitespace(res)
             with open(f"./outputs/{safe_target_model}/result-{safe_target_model}_by_{safe_evaluation_model}.txt", mode='a', encoding="utf-8") as f:
                 f.write(str(res) +"\n")
@@ -391,5 +392,5 @@ with open(csv_file, 'r', encoding='utf-8') as csvfile:
             print(count)
     
 score_sum()
-combine_files(output_txt, result_file, csv_file, markdown_output)
+combine_files(output_txt, result_file, critc_file, csv_file, markdown_output)
 

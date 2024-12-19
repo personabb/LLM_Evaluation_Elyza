@@ -259,7 +259,7 @@ def Evaluate_LLM(call_in:str, step:int):
 
     output = chain.invoke({"user_input":str(call_in)})
     #print(output)
-    with open(f"./outputs/{safe_target_model}/cretical-{Target}-{safe_target_model}_by_{safe_evaluation_model}.txt", mode='a', encoding="utf-8") as f:
+    with open(critc_file, mode='a', encoding="utf-8") as f:
         f.write(f"=========={step}.Prompt===========\n\n" + output["user_input"]["user_input"] +f"\n\n---------LLM Output---------\n\n")
         f.write(output["llm_output"] +f"\n\n---------LLM Answer---------\n\n" + output["Answer"] + "\n\n")
     return output["Answer"]
@@ -496,7 +496,7 @@ with open(csv_file, 'r', encoding='utf-8') as csvfile:
                 f.write(str(out) + "\n\n")
 
             exam_text = make_input(out,row[0],row[1],row[2])
-            res = Evaluate_LLM(exam_text, step)
+            res = Evaluate_LLM(exam_text, step, critc_file)
             res = remove_whitespace(res)
             with open(result_file, mode='a', encoding="utf-8") as f:
                 f.write(str(res) +"\n")
