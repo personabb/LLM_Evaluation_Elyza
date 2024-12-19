@@ -41,7 +41,7 @@ Evaluation_model = "gpt-4o"
 output_txt = "./outputs/tuzumi-agents/output-tuzumi-agents.txt"
 
 #何問目から再開するか 1問目から始める場合は1
-resume_question_index = 1
+resume_question_index = 101
 
 #Huggingfaceにて、アクセス権限がないと取得できないモデルを利用するかどうかのフラグ
 HuggingFace_access = True
@@ -265,28 +265,64 @@ def score_sum():
     with open(f"./outputs/{safe_target_model}/score-{safe_target_model}_by_{safe_evaluation_model}.txt", mode='a', encoding="utf-8") as f:
         f.write("スコアは"+str(score)+"です\n")
 
+def remove_whitespace(text: str) -> str:
+    """
+    文字列からスペース、改行、タブなどの空白文字を削除する。
 
-def combine_files(output_file:str, result_file:str, csv_file:str, markdown_output:str):
+    Args:
+        text (str): 入力文字列。
+
+    Returns:
+        str: 空白文字が削除された文字列。
+    """
+    return re.sub(r"\s+", "", text)
+
+def combine_files(output_file:str, result_file:str, critc_file:str, csv_file:str, markdown_output:str):
     # Load questions and answers
     with open(output_file, 'r', encoding='utf-8') as f:
         text = f.read()
+
+    # ファイルの内容を読み込む
+    with open(critc_file, 'r', encoding='utf-8') as file:
+        content = file.read()
     
     # 正規表現で問題ごとのセクションを取得
     pattern_question = r'==========(\d+)\.Question===========\n(.*?)\n---------Answer---------\n(.*?)(?=\n==========|$)'
     matches = re.findall(pattern_question, text, re.DOTALL)
 
+    print(f"問題数: {len(matches)}")
+
+   # 正規表現で各セクションを抽出
+    prompts = re.findall(r'(==========\d+\.Prompt===========.*?---------LLM Output---------)', content, re.DOTALL)
+    numbers = re.findall(r"==========(\d+)\.Prompt==========", content)
+    llm_outputs = re.findall(r'---------LLM Output---------\s*(.*?)\s*---------LLM Answer---------',content,re.DOTALL)
+    answers = re.findall(r'(---------LLM Answer---------.*?==========\d+\.Prompt===========)', content + '==========101.Prompt===========', re.DOTALL)
+    
+    print(f"Prompt数: {len(prompts)}")
+    print(f"Number数: {len(numbers)}")
+    print(f"LLM Output数: {len(llm_outputs)}")
+    print(f"Answer数: {len(answers)}")
+
     # 結果を格納
     results = []
 
     # 各問題と回答を処理
-    for match in matches:
+    for step, match in enumerate(matches):
         question_number = match[0]  # 問題番号
         question_text = match[1].strip()  # 質問部分
         answer_text = match[2].strip()  # 回答部分
+        pronpt = prompts[step]
+        number = numbers[step]
+        llm_output = llm_outputs[step]
+        answer = answers[step]
         results.append({
             "Question Number": question_number,
             "Question": question_text,
-            "Answer": answer_text
+            "Answer": answer_text,
+            "Prompt": pronpt,
+            "Number": number,
+            "LLM Output": llm_output,
+            "Scoring": answer
         })
         
     # Load scores
@@ -307,6 +343,13 @@ def combine_files(output_file:str, result_file:str, csv_file:str, markdown_outpu
     markdown_content = "# 結果と回答\n\n"
     
     for idx, result in enumerate(results):
+        if idx+1 != int(remove_whitespace(result["Question Number"])):
+            print(f"output-fileの問題番号が一致しません: {idx+1} != {result['Question Number']}")
+            raise ValueError(f"output-fileの問題番号が一致しません: step:{idx+1} != file:{result['Question Number']}")
+        if idx+1 != int(remove_whitespace(result["Number"])):
+            print(f"cretical-fileの問題番号が一致しません: {idx+1} != {result['Number']}")
+            raise ValueError(f"cretical-fileの問題番号が一致しません: step:{idx+1} != file:{result['Number']}")
+        
         model_answer = model_answers[idx+1] if idx < len(model_answers) else "模範解答なし"
         criteria = grading_criteria[idx+1] if idx < len(grading_criteria) else "採点基準なし"
         
@@ -315,6 +358,7 @@ def combine_files(output_file:str, result_file:str, csv_file:str, markdown_outpu
         markdown_content += f"### LLM出力結果:\n{result['Answer']}\n\n"
         markdown_content += f"### 模範解答:\n{model_answer}\n\n"
         markdown_content += f"### 採点基準:\n{criteria}\n\n"
+        markdown_content += f"### 採点理由:\n```\n{result['LLM Output']}\n```\n\n"
         markdown_content += "---\n\n"
     
     with open(markdown_output, 'w', encoding='utf-8') as f:
@@ -322,17 +366,7 @@ def combine_files(output_file:str, result_file:str, csv_file:str, markdown_outpu
 
     print(f"マークダウン形式のファイルが {markdown_output} に保存されました。")
 
-def remove_whitespace(text: str) -> str:
-    """
-    文字列からスペース、改行、タブなどの空白文字を削除する。
 
-    Args:
-        text (str): 入力文字列。
-
-    Returns:
-        str: 空白文字が削除された文字列。
-    """
-    return re.sub(r"\s+", "", text)
 
 result_file = f"./outputs/{safe_target_model}/result-{safe_target_model}_by_{safe_evaluation_model}.txt"
 csv_file = './inputs/test.csv'
