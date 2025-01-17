@@ -167,7 +167,6 @@ cython_debug/
 *.png
 *.wav
 *.gguf
-arxiv/
 *.sqlite3
 env*/
 *.pt
