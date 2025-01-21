@@ -41,8 +41,8 @@ Evaluation_model = "gpt-4o"
 
 # 評価対象のモデルの選択
 # "OpenAI_Base"では、gpt-4o系統もしくは、deepseekのみ実装済み
-Target = "OpenAI_Base"
-Target_model = "deepseek-chat"
+#Target = "OpenAI_Base"
+#Target_model = "deepseek-chat"
 #Target = "OpenAI_Base"
 #Target_model = "gpt-4o-mini"
 #Target = "Azure"
@@ -51,6 +51,8 @@ Target_model = "deepseek-chat"
 #Target_model = "gemini-1.5-flash" #"gemini-2.0-flash-exp", "gemini-1.5-flash"
 #Target = "HuggingFace"
 #Target_model = "meta-llama/Llama-3.2-1B-Instruct"
+Target = "HuggingFace"
+Target_model = "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
 
 # 何問目から再開するか（1問目から始める場合は1）
 resume_question_index = 1
@@ -172,6 +174,8 @@ def initialize_evaluation_model(
 
     elif evaluation_name == "HuggingFace":
         do_sample = (evaluation_temperature > 0.001)
+        if not do_sample:
+            evaluation_temperature = None
 
         huggingface_model = AutoModelForCausalLM.from_pretrained(
             evaluation_model_name,
@@ -285,11 +289,13 @@ def initialize_target_model(
 
     elif target_name == "HuggingFace":
         do_sample = (target_temperature > 0.001)
-
+        if not do_sample:
+            target_temperature = None
+            
         llama_target = AutoModelForCausalLM.from_pretrained(
             target_model_name,
             torch_dtype="auto",
-            device_map="auto",
+            #device_map="auto",
             cache_dir=efs_cache_dir,
             force_download=False,
             trust_remote_code=True
