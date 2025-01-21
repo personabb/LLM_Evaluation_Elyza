@@ -291,11 +291,11 @@ def initialize_target_model(
         do_sample = (target_temperature > 0.001)
         if not do_sample:
             target_temperature = None
-            
+
         llama_target = AutoModelForCausalLM.from_pretrained(
             target_model_name,
             torch_dtype="auto",
-            #device_map="auto",
+            device_map="auto",
             cache_dir=efs_cache_dir,
             force_download=False,
             trust_remote_code=True
