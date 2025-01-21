@@ -157,7 +157,10 @@ def initialize_evaluation_model(
         )
 
     elif evaluation_name == "HuggingFace":
-        do_sample = (temperature > 0)
+        do_sample = (temperature > 0.001)
+        if not do_sample:
+            temperature = None
+
         huggingface_model = AutoModelForCausalLM.from_pretrained(
             evaluation_model_name,
             torch_dtype="auto",
