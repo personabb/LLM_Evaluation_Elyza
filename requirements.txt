@@ -17,3 +17,5 @@ bitsandbytes
 langchain-google-genai
 huggingface_hub
 langchain-huggingface
+langchain-ollama
+langchain-xai
