@@ -21,6 +21,8 @@ from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_ollama import OllamaLLM
+from langchain_xai import ChatXAI
 
 #=================Parameter===========================================================================
 # (1) ここで宣言しているパラメータはグローバル変数として扱います。
@@ -38,6 +40,8 @@ Evaluation_model = "gpt-4o"
 #Evaluation_model = "gemini-2.0-flash-exp"
 #Evaluation = "HuggingFace"
 #Evaluation_model = "meta-llama/Llama-3.3-70B-Instruct"
+#Evaluation = "xAI"
+#Evaluation_model = "grok-2-latest"
 
 # 評価対象のモデルの選択
 # "OpenAI_Base"では、gpt-4o系統もしくは、deepseekのみ実装済み
@@ -51,10 +55,15 @@ Evaluation_model = "gpt-4o"
 #Target_model = "gemini-1.5-flash" #"gemini-2.0-flash-exp", "gemini-1.5-flash"
 #Target = "HuggingFace"
 #Target_model = "meta-llama/Llama-3.2-1B-Instruct"
-Target = "HuggingFace"
-Target_model = "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
+#Target = "HuggingFace"
+#Target_model = "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
+#Target = "Ollama"
+#Target_model = "huggingface.co/unsloth/DeepSeek-R1-Distill-Llama-8B-GGUF:Q4_K_M"
+Target = "xAI"
+#Target_model = "grok-beta"
+Target_model = "grok-2-latest"
 
-# 何問目から再開するか（1問目から始める場合は1）
+# 何問目から再開するか（1問目から始める場合は1）(既存のファイルから評価計算だけをしたい場合は101に設定)
 resume_question_index = 1
 
 # HuggingFaceにて、アクセス権限がないと取得できないモデルを利用するかどうかのフラグ
@@ -235,6 +244,17 @@ def initialize_evaluation_model(
             top_p=evaluation_top_p,
             stream=False
         )
+
+    elif target_name == "xAI":
+        os.environ["XAI_API_KEY"] = os.getenv("XAI_API_KEY", "")
+
+        model = ChatXAI(
+            # xai_api_key="YOUR_API_KEY",
+            model=evaluation_model_name,
+            max_tokens=4096,
+            temperature=evaluation_temperature,
+        )
+
     else:
         print("モデルが選択されていません。")
         exit()
@@ -328,6 +348,9 @@ def initialize_target_model(
         pipe_target = HuggingFacePipeline(pipeline=pipe_target)
         llm_api = ChatHuggingFace(llm=pipe_target, tokenizer=pipe_target.pipeline.tokenizer)
 
+    elif target_name == "Ollama":
+        llm_api = OllamaLLM(model=target_model_name, max_tokens=4096, temperature=target_temperature, top_p=target_top_p)
+
     elif target_name == "OpenAI_Base":
         API_KEY = None
         ENDPOINT = None
@@ -349,6 +372,16 @@ def initialize_target_model(
             top_p=target_top_p,
             stream=False
         )
+    
+    elif target_name == "xAI":
+        os.environ["XAI_API_KEY"] = os.getenv("XAI_API_KEY", "")
+        llm_api = ChatXAI(
+            # xai_api_key="YOUR_API_KEY",
+            model=target_model_name,
+            max_tokens=4096,
+            temperature=target_temperature,
+        )
+
 
     else:
         print("モデルが選択されていません。")
