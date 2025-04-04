@@ -21,8 +21,11 @@ from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_ollama import OllamaLLM
+from langchain_google_vertexai import ChatVertexAI
+#from langchain_ollama import OllamaLLM
+from langchain_ollama import ChatOllama
 from langchain_xai import ChatXAI
+from langchain_mistralai import ChatMistralAI
 
 #=================Parameter===========================================================================
 # (1) ここで宣言しているパラメータはグローバル変数として扱います。
@@ -36,12 +39,18 @@ from langchain_xai import ChatXAI
 #Evaluation_model = "gpt-4o-mini"
 Evaluation = "Azure"
 Evaluation_model = "gpt-4o"
+#Evaluation_model = "o1"
+#Evaluation_model = "o3-mini"
 #Evaluation = "Google"
 #Evaluation_model = "gemini-2.0-flash-exp"
+#Evaluation = "VertexAI"
+#Evaluation_model = "gemini-2.0-pro-exp-02-05"
 #Evaluation = "HuggingFace"
 #Evaluation_model = "meta-llama/Llama-3.3-70B-Instruct"
 #Evaluation = "xAI"
 #Evaluation_model = "grok-2-latest"
+#Evaluation = "MistralAI"
+#Evaluation_model = "mistral-large-latest"
 
 # 評価対象のモデルの選択
 # "OpenAI_Base"では、gpt-4o系統もしくは、deepseekのみ実装済み
@@ -51,17 +60,31 @@ Evaluation_model = "gpt-4o"
 #Target_model = "gpt-4o-mini"
 #Target = "Azure"
 #Target_model = "gpt-4o"
+#Target_model = "o1"
+#Target_model = "o3-mini"
 #Target = "Google"
 #Target_model = "gemini-1.5-flash" #"gemini-2.0-flash-exp", "gemini-1.5-flash"
+#Target_model = "gemini-2.0-pro-exp-02-05" #"gemini-2.0-flash-exp", "gemini-1.5-flash"
+#Target = "VertexAI"
+#Target_model = "gemini-2.0-pro-exp-02-05"
 #Target = "HuggingFace"
 #Target_model = "meta-llama/Llama-3.2-1B-Instruct"
 #Target = "HuggingFace"
 #Target_model = "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
-#Target = "Ollama"
+Target = "Ollama"
 #Target_model = "huggingface.co/unsloth/DeepSeek-R1-Distill-Llama-8B-GGUF:Q4_K_M"
-Target = "xAI"
+#Target_model = "gemma3:27b"
+Target_model = "gemma3:27b-it-fp16"
+#Target_model = "qwq:32b-fp16"
+#Target_model = "qwq:32b-q8_0"
+#Target_model = "qwq:32b-q4_K_M"
+#Target = "xAI"
 #Target_model = "grok-beta"
-Target_model = "grok-2-latest"
+#Target_model = "grok-2-latest"
+#Target = "MistralAI"
+#Target_model = "mistral-large-latest"
+
+Reasoning_cut = False
 
 # 何問目から再開するか（1問目から始める場合は1）(既存のファイルから評価計算だけをしたい場合は101に設定)
 resume_question_index = 1
@@ -137,152 +160,30 @@ def get_file_paths(
     }
 
 
-def initialize_evaluation_model(
-    evaluation_name: str,
-    evaluation_model_name: str,
-    evaluation_temperature: float,
-    evaluation_top_p: float
+
+
+
+def initialize_llm_model(
+    provider_name: str,
+    model_name: str,
+    temperature: float,
+    top_p: float
 ):
     """
-    採点に使用するモデルを初期化して返す関数。
+    モデルを初期化して返す関数。
 
     Args:
-        evaluation_name (str): 評価モデル名（"Azure", "Google", "HuggingFace", "OpenAI_Base"等）
-        evaluation_model_name (str): 評価モデルの詳細名
-        evaluation_temperature (float): 温度パラメータ
-        evaluation_top_p (float): top_pパラメータ
+        provider_name (str): モデル名（"Azure", "Google", "HuggingFace", "OpenAI_Base"等）
+        model_name (str): モデルの詳細名
+        temperature (float): 温度パラメータ
+        top_p (float): top_pパラメータ
 
     Returns:
-        model: 評価モデルとして使用するLLMオブジェクト
-    """
-    model = None
-
-    if evaluation_name == "Azure":
-        # 環境変数を登録するもしくは、直書きでも良い
-        # os.environ["OPENAI_API_VERSION"] = "2024-08-01-preview"
-        # os.environ["AZURE_OPENAI_ENDPOINT"] = "https://xxxxx.openai.azure.com"
-        # os.environ["AZURE_OPENAI_API_KEY"] = "AtNixxxxxxxxxxxxxxxxxxxxx"
-        os.environ["OPENAI_API_VERSION"] = os.getenv("OPENAI_API_VERSION", "")
-        os.environ["AZURE_OPENAI_ENDPOINT"] = os.getenv("AZURE_OPENAI_ENDPOINT", "")
-        os.environ["AZURE_OPENAI_API_KEY"] = os.getenv("AZURE_OPENAI_API_KEY", "")
-
-        model = AzureChatOpenAI(
-            azure_deployment=evaluation_model_name,
-            temperature=evaluation_temperature,
-        )
-
-    elif evaluation_name == "Google":
-        # 環境変数を登録するもしくは、直書きでも良い
-        os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY", "")
-
-        model = ChatGoogleGenerativeAI(
-            model=evaluation_model_name,
-            temperature=evaluation_temperature,
-            top_p=evaluation_top_p
-        )
-
-    elif evaluation_name == "HuggingFace":
-        do_sample = (evaluation_temperature > 0.001)
-        if not do_sample:
-            evaluation_temperature = None
-
-        huggingface_model = AutoModelForCausalLM.from_pretrained(
-            evaluation_model_name,
-            torch_dtype="auto",
-            device_map="auto",
-            cache_dir=efs_cache_dir, # モデルをキャッシュする場所を指定
-            force_download=False,
-            trust_remote_code=True
-        )
-
-        dtypes_llama = {param.dtype for param in huggingface_model.parameters()}
-        print(f"モデルで使用されているデータ型: {dtypes_llama}")
-
-        tokenizer = AutoTokenizer.from_pretrained(
-            evaluation_model_name,
-            cache_dir=efs_cache_dir, # トークナイザーも同様にキャッシュ
-            force_download=False,
-            trust_remote_code=True,
-            use_fast=True
-        )
-
-        # LLaMa系の場合にテンプレートを読み込む
-        if (tokenizer.chat_template is None) and ("llama" in evaluation_model_name.lower()):
-            with open("./inputs/llama_chat_template.txt", 'r', encoding='utf-8') as file:
-                template = file.read()
-            tokenizer.chat_template = template
-
-        pipe = pipeline(
-            "text-generation",
-            model=huggingface_model,
-            tokenizer=tokenizer,
-            temperature=evaluation_temperature,
-            do_sample=do_sample,
-            max_new_tokens=1024
-        )
-        pipe = HuggingFacePipeline(pipeline=pipe)
-        model = ChatHuggingFace(llm=pipe, tokenizer=pipe.pipeline.tokenizer)
-
-    elif evaluation_name == "OpenAI_Base":
-        API_KEY = None
-        ENDPOINT = None
-        if "gpt" in evaluation_model_name:
-            API_KEY = os.getenv("OPENAI_API_KEY", "")
-            ENDPOINT = "https://api.openai.com/v1"
-        elif evaluation_model_name == "deepseek-chat":
-            API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
-            ENDPOINT = "https://api.deepseek.com"
-        else:
-            raise ValueError("モデルが不正です。")
-
-        model = ChatOpenAI(
-            model=evaluation_model_name,
-            openai_api_key=API_KEY,
-            openai_api_base=ENDPOINT,
-            max_tokens=4096,
-            temperature=evaluation_temperature,
-            top_p=evaluation_top_p,
-            stream=False
-        )
-
-    elif target_name == "xAI":
-        os.environ["XAI_API_KEY"] = os.getenv("XAI_API_KEY", "")
-
-        model = ChatXAI(
-            # xai_api_key="YOUR_API_KEY",
-            model=evaluation_model_name,
-            max_tokens=4096,
-            temperature=evaluation_temperature,
-        )
-
-    else:
-        print("モデルが選択されていません。")
-        exit()
-
-    return model
-
-
-def initialize_target_model(
-    target_name: str,
-    target_model_name: str,
-    target_temperature: float,
-    target_top_p: float
-):
-    """
-    評価対象のモデルを初期化して返す関数。
-
-    Args:
-        target_name (str): 評価対象モデル名（"Azure", "Google", "HuggingFace", "OpenAI_Base"等）
-        target_model_name (str): 評価対象モデルの詳細名
-        target_temperature (float): 温度パラメータ
-        target_top_p (float): top_pパラメータ
-
-    Returns:
-        llm_api: 評価対象モデルとして使用するLLMオブジェクト
+        llm_api: モデルとして使用するLLMオブジェクト
     """
     llm_api = None
 
-    if target_name == "Azure":
+    if provider_name == "Azure":
         # 環境変数を登録するもしくは、直書きでも良い
         # os.environ["OPENAI_API_VERSION"] = "2024-08-01-preview"
         # os.environ["AZURE_OPENAI_ENDPOINT"] = "https://xxxxx.openai.azure.com"
@@ -291,29 +192,46 @@ def initialize_target_model(
         os.environ["AZURE_OPENAI_ENDPOINT"] = os.getenv("AZURE_OPENAI_ENDPOINT", "")
         os.environ["AZURE_OPENAI_API_KEY"] = os.getenv("AZURE_OPENAI_API_KEY", "")
 
-        llm_api = AzureChatOpenAI(
-            azure_deployment=target_model_name,
-            temperature=target_temperature,
-            top_p=target_top_p
-        )
+        #o-seriesの場合は、temperatureを設定しないようにする
+        if "o1" in model_name or "o3" in model_name:
+            llm_api = AzureChatOpenAI(
+                azure_deployment=model_name,
+            )
+        else:
+            llm_api = AzureChatOpenAI(
+                azure_deployment=model_name,
+                temperature=temperature,
+                top_p=top_p
+            )
 
-    elif target_name == "Google":
+    elif provider_name == "Google":
         # 環境変数を登録するもしくは、直書きでも良い
         os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY", "")
 
         llm_api = ChatGoogleGenerativeAI(
-            model=target_model_name,
-            temperature=target_temperature,
-            top_p=target_top_p
+            model=model_name,
+            temperature=temperature,
+            top_p=top_p
+        )
+    
+    elif provider_name == "VertexAI":
+        llm_api = ChatVertexAI(
+            model=model_name,
+            temperature=temperature,
+            top_p=top_p,
+            max_tokens=None,
+            #max_retries=6,
+            #stop=None,
+            # other params...
         )
 
-    elif target_name == "HuggingFace":
-        do_sample = (target_temperature > 0.001)
+    elif provider_name == "HuggingFace":
+        do_sample = (temperature > 0.001)
         if not do_sample:
-            target_temperature = None
+            temperature = None
 
         llama_target = AutoModelForCausalLM.from_pretrained(
-            target_model_name,
+            model_name,
             torch_dtype="auto",
             device_map="auto",
             cache_dir=efs_cache_dir,
@@ -325,14 +243,14 @@ def initialize_target_model(
         print(f"モデルで使用されているデータ型: {dtypes_llama_target}")
 
         tokenizer_target = AutoTokenizer.from_pretrained(
-            target_model_name,
+            model_name,
             cache_dir=efs_cache_dir,
             force_download=False,
             trust_remote_code=True,
             use_fast=True
         )
 
-        if (tokenizer_target.chat_template is None) and ("llama" in target_model_name.lower()):
+        if (tokenizer_target.chat_template is None) and ("llama" in model_name.lower()):
             with open("./inputs/llama_chat_template.txt", 'r', encoding='utf-8') as file:
                 template = file.read()
             tokenizer_target.chat_template = template
@@ -341,45 +259,72 @@ def initialize_target_model(
             "text-generation",
             model=llama_target,
             tokenizer=tokenizer_target,
-            temperature=target_temperature,
+            temperature=temperature,
             do_sample=do_sample,
-            max_new_tokens=1024
+            max_new_tokens=None
         )
         pipe_target = HuggingFacePipeline(pipeline=pipe_target)
         llm_api = ChatHuggingFace(llm=pipe_target, tokenizer=pipe_target.pipeline.tokenizer)
 
-    elif target_name == "Ollama":
-        llm_api = OllamaLLM(model=target_model_name, max_tokens=4096, temperature=target_temperature, top_p=target_top_p)
+    elif provider_name == "Ollama":
+        llm_api = ChatOllama(model=model_name, max_tokens=None, temperature=temperature, top_p=top_p)
+    
+    elif provider_name == "OpenRouter":
 
-    elif target_name == "OpenAI_Base":
+        API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+        ENDPOINT = "https://openrouter.ai/api/v1"
+
+
+        llm_api = ChatOpenAI(
+            model=model_name,
+            openai_api_key=API_KEY,
+            openai_api_base=ENDPOINT,
+            max_tokens=None,
+            temperature=temperature,
+            top_p=top_p,
+            stream=False
+        )
+
+    elif provider_name == "OpenAI_Base":
         API_KEY = None
         ENDPOINT = None
-        if "gpt" in target_model_name:
+        if "gpt" in model_name: #TODO: o-seriesの場合の処理を追加
             API_KEY = os.getenv("OPENAI_API_KEY", "")
             ENDPOINT = "https://api.openai.com/v1"
-        elif target_model_name == "deepseek-chat":
+        elif model_name == "deepseek-chat":
             API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
             ENDPOINT = "https://api.deepseek.com"
         else:
             raise ValueError("モデルが不正です。")
 
         llm_api = ChatOpenAI(
-            model=target_model_name,
+            model=model_name,
             openai_api_key=API_KEY,
             openai_api_base=ENDPOINT,
-            max_tokens=4096,
-            temperature=target_temperature,
-            top_p=target_top_p,
+            max_tokens=None,
+            temperature=temperature,
+            top_p=top_p,
             stream=False
         )
     
-    elif target_name == "xAI":
+    elif provider_name == "xAI":
         os.environ["XAI_API_KEY"] = os.getenv("XAI_API_KEY", "")
         llm_api = ChatXAI(
             # xai_api_key="YOUR_API_KEY",
-            model=target_model_name,
-            max_tokens=4096,
-            temperature=target_temperature,
+            model=model_name,
+            max_tokens=None,
+            temperature=temperature,
+        )
+    elif provider_name == "MistralAI":
+        os.environ["MISTRAL_API_KEY"] = os.getenv("MISTRAL_API_KEY", "")
+
+        llm_api = ChatMistralAI(
+            model=model_name,
+            temperature=temperature,
+            top_p=top_p,
+            max_tokens=None,
+            #max_retries=2,
+            # other params...
         )
 
 
@@ -394,7 +339,7 @@ def get_LLM_chain(
     query: Runnable,
     llm_api: Runnable,
     output_parser: Runnable,
-    target_name: str
+    provider_name: str
 ) -> Runnable:
     """
     指定した query, llm_api, output_parser を組み合わせて LLM チェーンを返す関数。
@@ -404,12 +349,12 @@ def get_LLM_chain(
         query (Runnable): 入力プロンプトを生成するRunnableオブジェクト
         llm_api (Runnable): 言語モデルへのAPI呼び出しを実行するRunnableオブジェクト
         output_parser (Runnable): モデル出力を処理するRunnableオブジェクト
-        target_name (str): ターゲットモデル名("HuggingFace"など)
+        provider_name (str): ターゲットモデル名("HuggingFace"など)
 
     Returns:
         Runnable: 組み合わせたLLMチェーン
     """
-    if target_name == "HuggingFace":
+    if provider_name == "HuggingFace":
         return query | llm_api.bind(skip_prompt=True) | output_parser
     else:
         return query | llm_api | output_parser
@@ -418,7 +363,7 @@ def get_LLM_chain(
 def Answers_LLM(
     user_inputs_text: str,
     llm_api: Runnable,
-    target_name: str
+    provider_name: str
 ) -> str:
     """
     評価対象のモデルに入力を与え、回答を得るための関数。
@@ -428,7 +373,7 @@ def Answers_LLM(
     Args:
         user_inputs_text (str): ユーザーが入力する質問文やメッセージ
         llm_api (Runnable): 評価対象モデルのLLMオブジェクト
-        target_name (str): 評価対象モデル名("HuggingFace","Google","OpenAI_Base","Azure"等)
+        provider_name (str): 評価対象モデル名("HuggingFace","Google","OpenAI_Base","Azure"等)
 
     Returns:
         str: モデルの回答テキスト
@@ -439,12 +384,15 @@ def Answers_LLM(
     ]
     query = ChatPromptTemplate.from_messages(messages_api)
     output_parser = StrOutputParser()
-    chain = get_LLM_chain(query, llm_api, output_parser, target_name)
+    chain = get_LLM_chain(query, llm_api, output_parser, provider_name)
 
     max_retries = 3
     for attempt in range(max_retries):
         try:
             response_api = chain.invoke({"user_input": user_inputs_text})
+            if Reasoning_cut:
+                response_no_reason = re.sub(r'<think>.*?</think>', '', response_api, flags=re.DOTALL)
+                return response_api, response_no_reason
             return response_api
 
         except openai.BadRequestError as e:
@@ -775,14 +723,16 @@ def main():
     #---------------------------------------
     # モデル初期化
     #---------------------------------------
-    evaluation_model_obj = initialize_evaluation_model(
+    #採点用モデルの初期化
+    evaluation_model_obj = initialize_llm_model(
         Evaluation,
         Evaluation_model,
         Evaluation_temperature,
         Evaluation_top_p
     )
 
-    llm_api = initialize_target_model(
+    #評価対象モデルの初期化
+    llm_api = initialize_llm_model(
         Target,
         Target_model,
         Target_temperature,
@@ -801,13 +751,20 @@ def main():
                 print(f'問題: {row[0]}, 回答: {row[1]}, 採点ポイント: {row[2]}')
 
                 # 被評価モデルへの質問
-                out = Answers_LLM(str(row[0]), llm_api, Target)
+                out = ""    
+                out_reason = ""
+                result = Answers_LLM(str(row[0]), llm_api, Target)
+                if Reasoning_cut  and len(result) == 2:
+                    out_reason, out = result
+                else:
+                    out_reason = result
+                    out = result
 
                 # 出力結果をファイルに書き込む
                 with open(output_file, mode='a', encoding="utf-8") as f:
                     f.write(f"=========={step}.Question===========\n\n" + str(row[0])
                             + f"\n\n---------Answer---------\n\n")
-                    f.write(str(out) + "\n\n")
+                    f.write(str(out_reason) + "\n\n")
 
                 # 採点用の入力を組み立てる
                 exam_text = make_input(out, row[0], row[1], row[2])

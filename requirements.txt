@@ -19,3 +19,5 @@ huggingface_hub
 langchain-huggingface
 langchain-ollama
 langchain-xai
+langchain_mistralai
+langchain-google-vertexai
